@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include "mmio.h"
 #include "coo2csc.h"
+#include "string.h"
 
 int main(char argc, char** argv) {
 
@@ -22,6 +23,7 @@ int main(char argc, char** argv) {
     uint32_t I, J, K, nnz_a, nnz_b, nnz_f; 
     int *I_A, *I_B, *I_F, *J_A, *J_B, *J_F;
     double *val_a;
+    int chunks;
 
     if (argc < 2)
 	{
@@ -75,6 +77,16 @@ int main(char argc, char** argv) {
     
     printf("I: %d, K: %d, nnz_a: %d", I, K, nnz_a);
 
+    uint8_t*** a = (uint8_t***) malloc(chunks * sizeof(uint8_t**));
+    for(int i = 0; i < chunks; i++) {
+        a[i] = (uint8_t**) malloc(I * sizeof(uint8_t*));
+        for(int j = 0; j < I; j++) {
+            a[i][j] = (uint8_t*) malloc((K / chunks) * sizeof(uint8_t));
+            /* Set all values of the array to zero */
+            memset(a[i][j], 0, (K / chunks) * sizeof(uint8_t));
+        }        
+    }
+
     /* Read from the file */
     for (uint32_t i=0; i < nnz_a; i++) {
         /* I is for the rows and J for the columns */
@@ -83,16 +95,11 @@ int main(char argc, char** argv) {
         printf("J_A[%d] = %d\n", i, J_A[i]);
         I_A[i]--;  /* adjust from 1-based to 0-based */
         J_A[i]--;
+
+        a[J_A[i] % (K / chunks)][I_A[i]][J_A[i] / chunks];
     }
 
     if (f1 !=stdin) fclose(f1);
-
-    /* For the A_CSC */
-    uint32_t* aRow = (uint32_t *) malloc(nnz_a * sizeof(uint32_t));
-    uint32_t* aColumn = (uint32_t *) malloc((K + 1) * sizeof(uint32_t));
-
-    coo2csc(aRow, aColumn, I_A, J_A, nnz_a, I, 0);
-
 
     /* Read B matrix */
 
@@ -120,6 +127,16 @@ int main(char argc, char** argv) {
     
     printf("K: %d, J: %d, nnz_b: %d", K, J, nnz_b);
 
+   uint8_t*** b = (uint8_t***) malloc(chunks * sizeof(uint8_t**));
+    for(int i = 0; i < chunks; i++) {
+        b[i] = (uint8_t**) malloc((K / chunks) * sizeof(uint8_t*));
+        for(int j = 0; j < (K / chunks); j++) {
+            b[i][j] = (uint8_t*) malloc(I * sizeof(uint8_t));
+            /* Set all values of the array to zero */
+            memset(b[i][j], 0, I * sizeof(uint8_t));
+        }        
+    }
+
     /* Read from the file */
     for (uint32_t i=0; i < nnz_b; i++) {
         /* I is for the rows and J for the columns */
@@ -128,16 +145,11 @@ int main(char argc, char** argv) {
         printf("J_B[%d] = %d\n", i, J_B[i]);
         I_B[i]--;  /* adjust from 1-based to 0-based */
         J_B[i]--;
+
+        b[ I_B[i] % (K / chunks) ][ I_B[i] / chunks ][ J_B[i] ];
     }
 
     if (f2 !=stdin) fclose(f2);
-
-    /* For the B_CSC */
-    uint32_t* bRow = (uint32_t *) malloc(nnz_b * sizeof(uint32_t));
-    uint32_t* bColumn = (uint32_t *) malloc((J + 1) * sizeof(uint32_t));
-
-    coo2csc(bRow, bColumn, I_B, J_B, nnz_b, K, 0); 
-
     
     /* Read F matrix */
 
@@ -177,74 +189,8 @@ int main(char argc, char** argv) {
     }
 
     if (f3 !=stdin) fclose(f3);
-
-    /* For the F_CSC */
-    uint32_t* fRow = (uint32_t *) malloc(nnz_f * sizeof(uint32_t));
-    uint32_t* fColumn = (uint32_t *) malloc((J + 1) * sizeof(uint32_t));
-
-    coo2csc(fRow, fColumn, I_F, J_F, nnz_f, I, 0);
-
-
-    /* Multiplication starts here */
-
-    printf("aColumn:\n");
-    for(uint32_t i = 0; i < K + 1; i++) {
-        printf("%d\t", aColumn[i]);
-    }
-    printf("\naRow:\n");
-    for(uint32_t i = 0; i < nnz_a; i++) {
-        printf("%d\t", aRow[i]);
-    }
-
-    printf("\nI_A:\n");
-    for(uint32_t i = 0; i < nnz_a; i++) {
-        printf("%d\t", I_A[i]);
-    }
-    printf("\nJ_B:\n");
-    for(uint32_t i = 0; i < nnz_a; i++) {
-        printf("%d\t", J_A[i]);
-    }
-
-
-    printf("bColumn:\n");
-    for(uint32_t i = 0; i < J + 1; i++) {
-        printf("%d\t", bColumn[i]);
-    }
-    printf("\nbRow:\n");
-    for(uint32_t i = 0; i < nnz_b; i++) {
-        printf("%d\t", bRow[i]);
-    }
-
-    printf("\nI_B:\n");
-    for(uint32_t i = 0; i < nnz_b; i++) {
-        printf("%d\t", I_B[i]);
-    }
-    printf("\nJ_B:\n");
-    for(uint32_t i = 0; i < nnz_b; i++) {
-        printf("%d\t", J_B[i]);
-    }
-
-
-    printf("fColumn:\n");
-    for(uint32_t i = 0; i < J + 1; i++) {
-        printf("%d\t", fColumn[i]);
-    }
-    printf("\nfRow:\n");
-    for(uint32_t i = 0; i < nnz_f; i++) {
-        printf("%d\t", fRow[i]);
-    }
-
-    printf("\nI_F:\n");
-    for(uint32_t i = 0; i < nnz_f; i++) {
-        printf("%d\t", I_F[i]);
-    }
-    printf("\nJ_F:\n");
-    for(uint32_t i = 0; i < nnz_f; i++) {
-        printf("%d\t", J_F[i]);
-    }
-
     
-
+    /* Algorithm starts here */
 
 }
 
