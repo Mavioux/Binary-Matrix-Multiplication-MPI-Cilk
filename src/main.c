@@ -96,7 +96,7 @@ int main(char argc, char** argv) {
         I_A[i]--;  /* adjust from 1-based to 0-based */
         J_A[i]--;
 
-        a[J_A[i] % (K / chunks)][I_A[i]][J_A[i] / chunks];
+        a[J_A[i] % chunks][I_A[i]][J_A[i] & chunks] = 1;
     }
 
     if (f1 !=stdin) fclose(f1);
@@ -131,9 +131,9 @@ int main(char argc, char** argv) {
     for(int i = 0; i < chunks; i++) {
         b[i] = (uint8_t**) malloc((K / chunks) * sizeof(uint8_t*));
         for(int j = 0; j < (K / chunks); j++) {
-            b[i][j] = (uint8_t*) malloc(I * sizeof(uint8_t));
+            b[i][j] = (uint8_t*) malloc(J * sizeof(uint8_t));
             /* Set all values of the array to zero */
-            memset(b[i][j], 0, I * sizeof(uint8_t));
+            memset(b[i][j], 0, J * sizeof(uint8_t));
         }        
     }
 
@@ -146,7 +146,7 @@ int main(char argc, char** argv) {
         I_B[i]--;  /* adjust from 1-based to 0-based */
         J_B[i]--;
 
-        b[ I_B[i] % (K / chunks) ][ I_B[i] / chunks ][ J_B[i] ];
+        b[I_B[i] / chunks][I_B[i] % chunks][J_B[i]] = 1;
     }
 
     if (f2 !=stdin) fclose(f2);
