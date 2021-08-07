@@ -1,0 +1,1 @@
+../out/main ../matrices/test1.mtx ../matrices/test2.mtx ../matrices/test3.mtx
