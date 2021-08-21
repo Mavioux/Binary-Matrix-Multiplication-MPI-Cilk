@@ -10,8 +10,8 @@ default: all
 main: mmio.o coo2csc.o main.o
 	$(CC) $(CFLAGS) -o ../out/main mmio.c coo2csc.c main.c
 
-main_cilk: mmio.o coo2csc.o main_cilk.o
-	$(CILKCC) $(CFLAGS) -o ../out/main_cilk mmio.c coo2csc.c main_cilk.c -fcilkplus
+main_cilk: mmio.o coo2csc.o main_cilk.c
+	$(MPICC) $(CILKCC) -o ../out/main_cilk mmio.c coo2csc.c main_cilk.c -fcilkplus
 
 test: mmio.o coo2csc.o test.c
 	$(CC) $(PTHREADSFLAGS) -o test mmio.c coo2csc.c test.c
