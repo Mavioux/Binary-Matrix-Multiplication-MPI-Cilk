@@ -15,6 +15,12 @@
 #include "coo2csc.h"
 #include "string.h"
 
+#include <cilk/cilk.h>
+#include <pthread.h>
+#include <cilk/cilk_api.h>
+
+
+
 int main(int argc, char** argv) {
 
     int ret_code;
@@ -24,6 +30,12 @@ int main(int argc, char** argv) {
     int *I_A, *I_B, *I_F, *J_A, *J_B, *J_F;
     double *val_a;
     int chunks = 4;
+
+    char* string_num_of_threads = "1";
+
+    __cilkrts_set_param("nworkers",string_num_of_threads);
+    int numWorkers = __cilkrts_get_nworkers();
+    printf("There are %d workers.\n",numWorkers);
 
     if (argc < 2)
 	{
@@ -224,7 +236,7 @@ int main(int argc, char** argv) {
     
     // /* Algorithm starts here */
 
-    for(int i = 0; i < I; i++) {
+    cilk_for(int i = 0; i < I; i++) {
         for(int j = 0; j < J; j++) {
             for(int m = 0; m < chunks; m++) {
                 for(int k = 0; k < K / chunks; k++) {
@@ -248,6 +260,8 @@ int main(int argc, char** argv) {
             printf("%u\t", res[i][j]);
         }
     }
+
+    
 
 }
 
