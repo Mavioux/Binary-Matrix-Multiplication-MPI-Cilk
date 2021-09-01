@@ -14,6 +14,10 @@
 #include "mmio.h"
 #include "coo2csc.h"
 #include "string.h"
+#include <cilk/cilk.h>
+#include <pthread.h>
+#include <cilk/cilk_api.h>
+#include <time.h>
 
 int main(int argc, char** argv) {
 
@@ -23,7 +27,9 @@ int main(int argc, char** argv) {
     uint32_t I, J, K, nnz_a, nnz_b, nnz_f; 
     int *I_A, *I_B, *I_F, *J_A, *J_B, *J_F;
     double *val_a;
-    int chunks = 4;
+
+    clock_t begin;
+    clock_t end;
 
     if (argc < 2)
 	{
@@ -77,14 +83,10 @@ int main(int argc, char** argv) {
     
     printf("I: %d, K: %d, nnz_a: %d\n", I, K, nnz_a);
 
-    uint8_t*** a = (uint8_t***) malloc(chunks * sizeof(uint8_t**));
-    for(int i = 0; i < chunks; i++) {
-        a[i] = (uint8_t**) malloc(I * sizeof(uint8_t*));
-        for(int j = 0; j < I; j++) {
-            a[i][j] = (uint8_t*) malloc((K / chunks) * sizeof(uint8_t));
-            /* Set all values of the array to zero */
-            memset(a[i][j], 0, (K / chunks) * sizeof(uint8_t));
-        }        
+    uint8_t** a = (uint8_t**) malloc(I * sizeof(uint8_t*));
+    for(int i = 0; i < I; i++) {
+        a[i] = (uint8_t*) malloc(K * sizeof(uint8_t));
+        memset(a[i], 0, I * sizeof(uint8_t));    
     }
 
     /* Read from the file */
@@ -96,21 +98,10 @@ int main(int argc, char** argv) {
         I_A[i]--;  /* adjust from 1-based to 0-based */
         J_A[i]--;
 
-        a[J_A[i] / (K / chunks)][I_A[i]][J_A[i] % (K / chunks)] = 1;
+        a[I_A[i]][J_A[i]] = 1;
     }
 
     if (f1 !=stdin) fclose(f1);
-
-    printf("A Matrix");
-    for(int m = 0; m < chunks; m++) {
-        for(int i = 0; i < I; i++) {
-            printf("\n");
-            for(int j = 0; j < K/chunks; j++) {
-                printf("%u\t", a[m][i][j]);
-            }
-        } 
-        printf("\n");
-    }
     
     
 
@@ -140,40 +131,22 @@ int main(int argc, char** argv) {
     
     printf("K: %d, J: %d, nnz_b: %d\n", K, J, nnz_b);
 
-   uint8_t*** b = (uint8_t***) malloc(chunks * sizeof(uint8_t**));
-    for(int i = 0; i < chunks; i++) {
-        b[i] = (uint8_t**) malloc((K / chunks) * sizeof(uint8_t*));
-        for(int j = 0; j < (K / chunks); j++) {
-            b[i][j] = (uint8_t*) malloc(J * sizeof(uint8_t));
-            /* Set all values of the array to zero */
-            memset(b[i][j], 0, J * sizeof(uint8_t));
-        }        
+   uint8_t** b = (uint8_t**) malloc(K * sizeof(uint8_t*));
+    for(int i = 0; i < K; i++) {
+        b[i] = (uint8_t*) malloc(J * sizeof(uint8_t));
+        memset(b[i], 0, K * sizeof(uint8_t));    
     }
 
     /* Read from the file */
     for (uint32_t i=0; i < nnz_b; i++) {
         /* I is for the rows and J for the columns */
         fscanf(f2, "%d %d\n", &I_B[i], &J_B[i]);
-        // printf("I_B[%d] = %d\n", i, I_B[i]);
-        // printf("J_B[%d] = %d\n", i, J_B[i]);
         I_B[i]--;  /* adjust from 1-based to 0-based */
         J_B[i]--;
-        // printf("%d, %d, %d\n", I_B[i] / (K / chunks), I_B[i] % (K / chunks), J_B[i]);
-        b[I_B[i] / (K / chunks)][I_B[i] % (K / chunks)][J_B[i]] = 1;
+        b[I_B[i]][J_B[i]] = 1;
     }
 
     if (f2 !=stdin) fclose(f2);
-
-    printf("B Matrix");
-    for(int m = 0; m < chunks; m++) {
-        for(int i = 0; i < K/chunks; i++) {
-            printf("\n");
-            for(int j = 0; j < J; j++) {
-                printf("%u\t", a[m][i][j]);
-            }
-        } 
-        printf("\n");
-    }
     
     
     // /* Read F matrix */
@@ -224,30 +197,33 @@ int main(int argc, char** argv) {
     
     // /* Algorithm starts here */
 
+    // Start measuring time
+    begin = clock();
+
     for(int i = 0; i < I; i++) {
         for(int j = 0; j < J; j++) {
-            for(int m = 0; m < chunks; m++) {
-                for(int k = 0; k < K / chunks; k++) {
-                    uint8_t value = a[m][i][k] * b[m][k][j];
-                    if(value) {
-                        res[i][j] = 1;
-                        goto next_iteration;
-                    }
+            for(int k = 0; k < K; k++) {
+                if(a[i][k] * b[k][j]) {
+                    res[i][j] = 1;
+                    goto next_iteration;
                 }
             }
-            next_iteration: ;
         }
+        next_iteration: ;
     }
-    
 
-    /* Print result */
-    printf("result matrix\n");
-    for(int i = 0; i < I; i++) {
-        printf("\n");
-        for(int j = 0; j < J; j++) {
-            printf("%u\t", res[i][j]);
-        }
-    }
+    end = clock();
+    double duration = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Duration: %f\n", duration);
+
+    // /* Print result */
+    // printf("result matrix\n");
+    // for(int i = 0; i < I; i++) {
+    //     printf("\n");
+    //     for(int j = 0; j < J; j++) {
+    //         printf("%u\t", res[i][j]);
+    //     }
+    // }
 
 }
 

@@ -15,6 +15,7 @@
 #include "coo2csc.h"
 #include "string.h"
 #include <mpi.h>
+#include <time.h>
 
 int main(int argc, char** argv) {
 
@@ -24,6 +25,9 @@ int main(int argc, char** argv) {
     uint32_t I, J, K, nnz_a, nnz_b, nnz_f; 
     int *I_A, *I_B, *I_F, *J_A, *J_B, *J_F;
     double *val_a;
+
+    clock_t begin;
+    clock_t end;
 
     // MPI
     // Initialize the MPI environment
@@ -86,8 +90,6 @@ int main(int argc, char** argv) {
 
     if ((ret_code = mm_read_mtx_crd_size(f1, &I, &K, &nnz_a)) !=0)
         exit(1);
-    
-    printf("I: %d, K: %d, nnz_a: %d\n", I, K, nnz_a);
 
     uint8_t** a = (uint8_t**) malloc(I * sizeof(uint8_t*));
     for(int i = 0; i < I; i++) {
@@ -134,10 +136,8 @@ int main(int argc, char** argv) {
 
     if ((ret_code = mm_read_mtx_crd_size(f2, &K, &J, &nnz_b)) !=0)
         exit(1);
-    
-    printf("K: %d, J: %d, nnz_b: %d\n", K, J, nnz_b);
 
-   uint8_t** b = (uint8_t**) malloc(K * sizeof(uint8_t*));
+    uint8_t** b = (uint8_t**) malloc(K * sizeof(uint8_t*));
     for(int i = 0; i < K; i++) {
         b[i] = (uint8_t*) malloc(J * sizeof(uint8_t));
         memset(b[i], 0, K * sizeof(uint8_t));    
@@ -203,6 +203,11 @@ int main(int argc, char** argv) {
     
     // /* Algorithm starts here */
 
+    if(world_rank == 0) {
+        // Start measuring time
+        begin = clock();
+    }
+
     for(int i = 0; i < I/p; i++) {
         for(int j = 0; j < J; j++) {
             for(int k = 0; k < K; k++) {
@@ -215,13 +220,18 @@ int main(int argc, char** argv) {
         next_iteration: ;
     }
 
-    /* Print result */
-    printf("result matrix\n");
-    for(int i = 0; i < I; i++) {
-        printf("\n");
-        for(int j = 0; j < J; j++) {
-            printf("%u\t", res[i][j]);
+    if(world_rank == 0) {
+        int x;
+        for(int i = 1; i < p; i ++) {
+            MPI_Recv(&x, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
+        end = clock();
+        double duration = (double)(end - begin) / CLOCKS_PER_SEC;
+        printf("Duration: %f\n", duration);
+    }
+    else {
+        int x = world_rank;
+        MPI_Send(&x, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
     }
 
     // Finalize the MPI environment.

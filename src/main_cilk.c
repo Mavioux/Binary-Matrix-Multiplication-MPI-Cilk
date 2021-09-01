@@ -17,6 +17,7 @@
 #include <cilk/cilk.h>
 #include <pthread.h>
 #include <cilk/cilk_api.h>
+#include <time.h>
 
 int main(int argc, char** argv) {
 
@@ -26,6 +27,9 @@ int main(int argc, char** argv) {
     uint32_t I, J, K, nnz_a, nnz_b, nnz_f; 
     int *I_A, *I_B, *I_F, *J_A, *J_B, *J_F;
     double *val_a;
+
+    clock_t begin;
+    clock_t end;
 
     if (argc < 2)
 	{
@@ -193,6 +197,9 @@ int main(int argc, char** argv) {
     
     // /* Algorithm starts here */
 
+    // Start measuring time
+    begin = clock();
+
     cilk_for(int i = 0; i < I; i++) {
         for(int j = 0; j < J; j++) {
             for(int k = 0; k < K; k++) {
@@ -205,14 +212,18 @@ int main(int argc, char** argv) {
         next_iteration: ;
     }
 
-    /* Print result */
-    printf("result matrix\n");
-    for(int i = 0; i < I; i++) {
-        printf("\n");
-        for(int j = 0; j < J; j++) {
-            printf("%u\t", res[i][j]);
-        }
-    }
+    end = clock();
+    double duration = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Duration: %f\n", duration);
+
+    // /* Print result */
+    // printf("result matrix\n");
+    // for(int i = 0; i < I; i++) {
+    //     printf("\n");
+    //     for(int j = 0; j < J; j++) {
+    //         printf("%u\t", res[i][j]);
+    //     }
+    // }
 
 }
 
