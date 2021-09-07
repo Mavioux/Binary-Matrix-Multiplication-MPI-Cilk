@@ -7,8 +7,11 @@ PTHREADSFLAGS = -O3 -pthread -std=c99
 
 default: all
 
-main: mmio.o coo2csc.o main.o
+main: mmio.o coo2csc.o main.c
 	$(CC) $(CFLAGS) -o ../out/main mmio.c coo2csc.c main.c
+
+main3: mmio.o coo2csc.o main3.c
+	$(CC) $(CFLAGS) -o ../out/main3 mmio.c coo2csc.c main3.c
 
 main_cilk: mmio.o coo2csc.o main_cilk.c
 	$(CILKCC) -o ../out/main_cilk mmio.c coo2csc.c main_cilk.c -fcilkplus
@@ -25,7 +28,7 @@ test: mmio.o coo2csc.o test.c
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-all: main main_cilk main_mpi_cilk main_mpi
+all: main main_cilk main_mpi_cilk main_mpi main3
 
 .PHONY: clean
 	
