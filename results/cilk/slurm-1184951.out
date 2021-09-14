@@ -1,0 +1,5 @@
+remove OpenCilk 9.0.1 (PATH LD_LIBRARY_PATH OPENCILK)
+load OpenCilk 9.0.1 (PATH LD_LIBRARY_PATH OPENCILK)
+There are 16 workers.
+Matrix Loaded, now Searching!
+Duration: 0.030375

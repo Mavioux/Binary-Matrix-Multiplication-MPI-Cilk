@@ -119,7 +119,14 @@ int main(int argc, char** argv) {
     double *val;
     int binary = 1;
 
+    int num_of_threads = atoi(argv[2]);
+    char* string_num_of_threads = argv[2];
+
     struct timeval start, end;
+
+    __cilkrts_set_param("nworkers",string_num_of_threads);
+    int numWorkers = __cilkrts_get_nworkers();
+    printf("There are %d workers.\n",numWorkers);
 
     if (argc < 2)
 	{
