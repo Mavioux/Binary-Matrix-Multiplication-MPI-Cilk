@@ -28,7 +28,7 @@ test: mmio.o coo2csc.o test.c
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-all: main main_cilk main_mpi_cilk main_mpi main3
+all: main main_cilk main_mpi_cilk main_mpi
 
 .PHONY: clean
 	

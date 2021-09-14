@@ -18,6 +18,7 @@
 #include <pthread.h>
 #include <cilk/cilk_api.h>
 #include <time.h>
+#include <mpi.h>
 
 void readfile_stepone(
     FILE *f,
@@ -121,6 +122,18 @@ int main(int argc, char** argv) {
 
     struct timeval start, end;
 
+    // MPI
+    // Initialize the MPI environment
+    MPI_Init(NULL, NULL);
+
+    // Get the number of processes
+    int p;
+    MPI_Comm_size(MPI_COMM_WORLD, &p);
+
+    // Get the rank of the process
+    int world_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
     if (argc < 2)
 	{
 		fprintf(stderr, "Usage: %s [martix-market-filename] [0 for non binary 1 for binary matrix]\n", argv[0]);
@@ -169,28 +182,30 @@ int main(int argc, char** argv) {
 
     printf("Matrix Loaded, now Searching!\n");    
 
-    // Start measuring time
-    gettimeofday(&start,NULL); 
+    if(world_rank == 0) {
+        // Start measuring time
+        gettimeofday(&start,NULL);
+    }
 
     /* ALGORITHM STARTS HERE */
 
     // C = A.*(A*A)
-    cilk_for(int i = 0; i < N; i++) {
+    cilk_for(int i = world_rank * (N / p); i < (world_rank + 1) * (N / p) ; i++) {
         for(int j = 0; j < a_cscColumn[i+1] - a_cscColumn[i]; j++) {
             int a_row = a_cscRow[a_cscColumn[i] + j];
             int a_col = i;
 
             // Element of (A*A)[i,j]
-            int k_size = a_cscColumn[a_col+1] - a_cscColumn[a_col];  
-            int l_size = b_csrRow[a_row+1] - b_csrRow[a_row];    
+            int k_size = a_cscColumn[a_row+1] - a_cscColumn[a_row];  
+            int l_size = b_csrRow[a_col+1] - b_csrRow[a_col];    
             int *l = malloc((l_size) * sizeof(int));
             int *k = malloc((k_size) * sizeof(int));
             /* Create the l vector with the appropriate values */
             for(int x = 0; x < k_size; x++) {
-                k[x] = a_cscRow[a_cscColumn[a_col] + x];
+                k[x] = a_cscRow[a_cscColumn[a_row] + x];
             }
             for(int x = 0; x < l_size; x++) {
-                l[x] = b_csrColumn[b_csrRow[a_row] + x];
+                l[x] = b_csrColumn[b_csrRow[a_col] + x];
             }
 
             int k_pointer = 0;
@@ -221,12 +236,76 @@ int main(int argc, char** argv) {
             free(k);
         }
     }
+
+    if(world_rank == p - 1) {
+        cilk_for(int i = (world_rank + 1) * (N / p); i < (world_rank + 1) * (N / p) + N % p; i++) {
+            for(int j = 0; j < a_cscColumn[i+1] - a_cscColumn[i]; j++) {
+                int a_row = a_cscRow[a_cscColumn[i] + j];
+                int a_col = i;
+
+                // Element of (A*A)[i,j]
+                int k_size = a_cscColumn[a_col+1] - a_cscColumn[a_col];  
+                int l_size = b_csrRow[a_row+1] - b_csrRow[a_row];    
+                int *l = malloc((l_size) * sizeof(int));
+                int *k = malloc((k_size) * sizeof(int));
+                /* Create the l vector with the appropriate values */
+                for(int x = 0; x < k_size; x++) {
+                    k[x] = a_cscRow[a_cscColumn[a_col] + x];
+                }
+                for(int x = 0; x < l_size; x++) {
+                    l[x] = b_csrColumn[b_csrRow[a_row] + x];
+                }
+
+                int k_pointer = 0;
+                int l_pointer = 0;
+                int value = 0;
+
+                while(k_pointer != k_size && l_pointer != l_size) {
+                    if(k[k_pointer] == l[l_pointer]) {
+                        value = 1;
+                        break;
+                    }
+                    else if(k[k_pointer] > l[l_pointer]) {
+                        l_pointer++;
+                    }
+                    else
+                    {
+                        k_pointer++;
+                    }                
+                }        
+
+                if(value) {
+                    c_values[a_cscColumn[i] + j] = 1;
+                }
+                else {
+                    c_values[a_cscColumn[i] + j] = 0;
+                }
+                free(l);
+                free(k);
+            }
+        }
+    }
     c_cscColumn = a_cscColumn;
     c_cscRow = a_cscRow;
 
-    gettimeofday(&end,NULL);
-    double duration = (end.tv_sec+(double)end.tv_usec/1000000) - (start.tv_sec+(double)start.tv_usec/1000000);
-    printf("Duration: %f\n", duration);
+    if(world_rank == 0) {
+        int x;
+        for(int i = 1; i < p; i ++) {
+            MPI_Recv(&x, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+        gettimeofday(&end,NULL);
+        double duration = (end.tv_sec+(double)end.tv_usec/1000000) - (start.tv_sec+(double)start.tv_usec/1000000);
+        printf("Duration: %f\n", duration);
+    }
+    else {
+        int x = world_rank;
+        MPI_Send(&x, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+    }
+
+    // Finalize the MPI environment.
+    MPI_Finalize();
+
+    
 
     /* Deallocate the arrays */
     free(I);

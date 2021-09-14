@@ -156,7 +156,9 @@ int main(int argc, char** argv) {
     }
 
     coo2csc(a_cscRow, a_cscColumn, I, J, nnz, M, 0);
+
     coo2csc(b_csrColumn, b_csrRow, J, I, nnz, N, 0);
+
 
     /* For the C CSC */
     uint32_t* c_cscRow = (uint32_t *) malloc(0 * sizeof(uint32_t));
@@ -164,10 +166,10 @@ int main(int argc, char** argv) {
     uint32_t* c_cscColumn = (uint32_t *) malloc((N + 1) * sizeof(uint32_t));
 
     c_cscColumn[0] = 0;
-    c_cscRow = realloc(c_cscRow, 2 * nnz * sizeof(int));
-    c_values = realloc(c_values, 2 * nnz * sizeof(int));
+    c_cscRow = realloc(c_cscRow, nnz * sizeof(uint32_t));
+    c_values = realloc(c_values, nnz * sizeof(uint32_t));
 
-    printf("Matrix Loaded, now Searching!\n");    
+    printf("\nMatrix Loaded, now Searching!\n");    
 
     // Start measuring time
     gettimeofday(&start,NULL); 
@@ -181,16 +183,16 @@ int main(int argc, char** argv) {
             int a_col = i;
 
             // Element of (A*A)[i,j]
-            int k_size = a_cscColumn[a_row+1] - a_cscColumn[a_row];  
-            int l_size = b_csrRow[a_col+1] - b_csrRow[a_col];    
+            int k_size = a_cscColumn[a_col+1] - a_cscColumn[a_col];  
+            int l_size = b_csrRow[a_row+1] - b_csrRow[a_row];    
             int *l = malloc((l_size) * sizeof(int));
             int *k = malloc((k_size) * sizeof(int));
             /* Create the l vector with the appropriate values */
             for(int x = 0; x < k_size; x++) {
-                k[x] = a_cscRow[a_cscColumn[a_row] + x];
+                k[x] = a_cscRow[a_cscColumn[a_col] + x];
             }
             for(int x = 0; x < l_size; x++) {
-                l[x] = b_csrColumn[b_csrRow[a_col] + x];
+                l[x] = b_csrColumn[b_csrRow[a_row] + x];
             }
 
             int k_pointer = 0;
@@ -227,6 +229,7 @@ int main(int argc, char** argv) {
     gettimeofday(&end,NULL);
     double duration = (end.tv_sec+(double)end.tv_usec/1000000) - (start.tv_sec+(double)start.tv_usec/1000000);
     printf("Duration: %f\n", duration);
+    printf("\n");
 
     /* Deallocate the arrays */
     free(I);
