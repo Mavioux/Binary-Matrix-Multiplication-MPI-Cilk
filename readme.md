@@ -5,7 +5,7 @@ School of Electrical & Computer Engineering
 ```
 # Parallel and Distributed Computer Systems
 
-# 4 th Assignment
+# 4th Assignment
 
 ```
 Pakas Marios, 9498, mariospakas@ece.auth.gr
