@@ -103,9 +103,9 @@ used) makes for this result. In general, though, this collaborative implementati
 a faster result than the serial one, at least up to 16 cores which was the upper limit in this testing. It seems that
 when adding MPI and OpenCilk together their drawbacks seem to disappear.
 
-![MPI-OpenCilk](./diagram/mpi-opencilk.jpg)
-![OpenCilk](./diagram/opencilk.jpg)
-![MPI](./diagram/mpi.jpg)
+![MPI-OpenCilk](https://github.com/Mavioux/Binary-Matrix-Multiplication-MPI-Cilk/blob/master/diagrams/mpi-opencilk.jpg)
+![OpenCilk](https://github.com/Mavioux/Binary-Matrix-Multiplication-MPI-Cilk/blob/master/diagrams/opencilk.jpg)
+![MPI](https://github.com/Mavioux/Binary-Matrix-Multiplication-MPI-Cilk/blob/master/diagrams/mpi.jpg)
 
 
 The above graph charts picture the above observations on paper. On the MPI implementation, there is no
